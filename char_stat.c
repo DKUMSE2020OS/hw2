@@ -54,18 +54,19 @@ int main(int argc, char *argv[])
 #ifdef _IO_
 			printf("length: %d\n", (int)length);
 #endif
-			cptr = cptr + length + 1;
 			if (length >= 30) length = 30;
 			stat[length-1]++;
 			if (*cptr == '\0') break;
-		}
-		cptr = line;
-		for (int i = 0 ; i < length ; i++) {
-			if (*cptr < 256 && *cptr > 1) {
-				stat2[*cptr]++;
+
+			cptr = substr;
+			for (int i = 0 ; i < length+1 ; i++) {
+				if (*cptr < 256 && *cptr > 1) {
+					stat2[*cptr]++;
 #ifdef _IO_
-				printf("# of %c(%d): %d\n", *cptr, *cptr, stat2[*cptr]);
+					printf("# of %c(%d): %d\n", *cptr, *cptr, stat2[*cptr]);
 #endif
+				}
+				cptr++;
 			}
 			cptr++;
 		}
