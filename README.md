@@ -44,6 +44,9 @@ In case of single producer, 2 consumers, reading 'sample file'; you may need to 
 You can download some example input source code from the link: [https://mobile-os.dankook.ac.kr/data/FreeBSD9-orig.tar] or  
 you can use /opt/FreeBSD9-orig.tar from our server.
 
+Note. we have another sample input file in our server: 
+/home5/android_source.tar
+
 Please make some document so that I can follow to build/compile and run the code.
 It would be better if the document includes some introduction and some important implementation details or your program structure.
 
