@@ -50,7 +50,8 @@ int main(int argc, char *argv[])
 		rc = fread(buffer, sizeof(buffer), 1, rfile);
 		line = buffer;
 		if (rc == 0) break;
-
+		sum++;
+/*
 		cptr = line;
 #ifdef _IO_
 		printf("[%3d] %s\n", line_num++, line);
@@ -81,18 +82,20 @@ int main(int argc, char *argv[])
 			}
 			cptr++;
 		}
+*/
 	}
 	// Close the file
 	fclose(rfile);
 	} // global_iter
 
 	// sum
-	sum = 0;
+	//sum = 0;
 	for (i = 0 ; i < 30 ; i++) {
 		sum += stat[i];
 	}
 	// print out distributions
 	printf("*** print out distributions *** \n");
+	printf("sum: %d\n", sum);
 	printf("  #ch  freq \n");
 	for (i = 0 ; i < 30 ; i++) {
 		int j = 0;
