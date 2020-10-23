@@ -1,107 +1,4 @@
-#include <pthread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-
-typedef struct sharedobject {
-	FILE* rfile;
-	int linenum;
-	char* line[10];
-	pthread_mutex_t lock; //for mutual exclusion
-	pthread_cond_t cv; //condvar for checking full
-	int full[10];
-	int cidx;
-	int signal;
-} so_t;
-
-void* producer(void* arg) {
-	so_t* so = arg;
-	int* ret = malloc(sizeof(int));
-	FILE* rfile = so->rfile;
-	int i = 0;
-	char* line = NULL;
-	size_t len = 0;
-	ssize_t read = 0;
-	int pidx = 0;
-
-	while (1) {
-		//grab mutex lock
-		//check condvar
-		pthread_mutex_lock(&so->lock);
-		while (so->full[pidx] == 1) {
-			pthread_cond_wait(&so->cv, &so->lock);
-		}
-		//enter CS
-		read = getdelim(&line, &len, '\n', rfile);
-		if (read == -1) {
-			so->full[pidx] = 1;
-			so->line[pidx] = NULL;
-		}
-		else {
-			so->full[pidx] = 1;
-			so->line[pidx] = strdup(line);      /* share the line */
-			i++;
-		}
-		if (pidx == 9)
-			pidx = 0;
-		else
-			pidx++;
-		//release lock
-		//signal condvar
-		pthread_mutex_unlock(&so->lock);
-		pthread_cond_signal(&so->cv);
-		if (read == -1) break;
-	}
-	free(line);
-	printf("Prod_%x: %d lines\n", (unsigned int)pthread_self(), i);
-	*ret = i;
-	pthread_exit(ret);
-}
-
-void* consumer(void* arg) {
-	so_t* so = arg;
-	int* ret = malloc(sizeof(int));
-	int i = 0;
-	//int len;
-	char* line;
-
-	while (1) {
-		pthread_mutex_lock(&so->lock);
-		while (so->full[so->cidx] == 0) {
-			if (so->signal == 1)
-				break;
-			pthread_cond_wait(&so->cv, &so->lock);
-		}
-		if (so->signal == 1) {
-			pthread_mutex_unlock(&so->lock);
-			pthread_cond_signal(&so->cv);
-			break;
-		}
-		so->linenum++;
-		line = so->line[so->cidx];
-		//len = strlen(line);
-		if (line != NULL) {
-			printf("Cons_%x: [%02d:%02d] %s",
-				(unsigned int)pthread_self(), i, so->linenum, line);
-			free(so->line[so->cidx]);
-			i++;
-			so->full[so->cidx] = 0;
-		}
-		else
-			so->signal = 1;
-		if (so->cidx == 9)
-			so->cidx = 0;
-		else
-			so->cidx++;
-		pthread_mutex_unlock(&so->lock);
-		pthread_cond_signal(&so->cv);
-	}
-	printf("Cons: %d lines\n", i);
-	*ret = i;
-	pthread_exit(ret);
-}
-
+#include "mutex.h"
 
 int main(int argc, char* argv[])
 {
@@ -118,7 +15,7 @@ int main(int argc, char* argv[])
 	}
 	so_t* share = malloc(sizeof(so_t));
 	memset(share, 0, sizeof(so_t));
-	rfile = fopen((char*)argv[1], "r");
+	rfile = fopen((char*)argv[1], "rb");
 	if (rfile == NULL) {
 		perror("rfile");
 		exit(0);
@@ -144,7 +41,7 @@ int main(int argc, char* argv[])
 	for (i = 0; i < Nprod; i++)
 		pthread_create(&prod[i], NULL, producer, share);
 	for (i = 0; i < Ncons; i++)
-		pthread_create(&cons[i], NULL, consumer, share);
+		pthread_create(&cons[i], NULL, consumer_prod_cons, share);
 	printf("main continuing\n");
 
 	for (i = 0; i < Ncons; i++) {
@@ -158,4 +55,3 @@ int main(int argc, char* argv[])
 	pthread_exit(NULL);
 	exit(0);
 }
-
