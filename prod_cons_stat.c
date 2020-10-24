@@ -1,4 +1,5 @@
-/*	Mobile Sys. Eng. OS
+/*	
+	Mobile Sys. Eng. OS
 	HW2: Multi-threaded word count
 	32161570 Kitae Park	*/
 
