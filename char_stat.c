@@ -30,7 +30,7 @@ int main(int argc, char *argv[])
 	}
 	// initialize stat
 	memset(stat, 0, sizeof(stat));
-	memset(stat2, 0, sizeof(stat));
+	memset(stat2, 0, sizeof(stat2));
 
 	while (1) {
 		char *cptr = NULL;
