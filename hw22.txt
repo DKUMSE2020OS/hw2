@@ -1,0 +1,161 @@
+main continuing
+Cons_abf1f700: [00:00] #include <pthread.h>
+Cons_abf1f700: [01:01] #include <stdio.h>
+Cons_abf1f700: [02:02] #include <stdlib.h>
+Cons_abf1f700: [03:03] #include <unistd.h>
+Cons_abf1f700: [04:04] #include <string.h>
+Cons_abf1f700: [05:05] 
+Cons_abf1f700: [06:06] typedef struct sharedobject {
+Cons_abf1f700: [07:07] 	FILE *rfile;
+Cons_abf1f700: [08:08] 	int linenum;
+Cons_abf1f700: [09:09] 	char *line;
+Cons_abf1f700: [10:10] 	pthread_mutex_t lock;
+Cons_abf1f700: [11:11] 	pthread_cond_t cv;
+Cons_abf1f700: [12:12] 	int full;
+Cons_abf1f700: [13:13] } so_t;
+Cons_abf1f700: [14:14] 
+Cons_abf1f700: [15:15] void *producer(void *arg) {
+Cons_abf1f700: [16:16] 	so_t *so = arg;
+Cons_abf1f700: [17:17] 	int *ret = malloc(sizeof(int));
+Cons_abf1f700: [18:18] 	FILE *rfile = so->rfile;
+Cons_abf1f700: [19:19] 	int i = 0;
+Cons_abf1f700: [20:20] 	char *line = NULL;
+Cons_abf1f700: [21:21] 	size_t len = 0;
+Cons_abf1f700: [22:22] 	ssize_t read = 0;
+Cons_abf1f700: [23:23] 
+Cons_abf1f700: [24:24] 	while (1) {
+Cons_abf1f700: [25:25] 
+Cons_abf1f700: [26:26] 		pthread_mutex_lock(&so->lock);
+Cons_abf1f700: [27:27] 		
+Cons_abf1f700: [28:28] 		while(so->full == 1)
+Cons_abf1f700: [29:29] 		{
+Cons_abf1f700: [30:30] 			pthread_cond_wait(&so->cv, &so->lock);
+Cons_abf1f700: [31:31] 		}	
+Cons_abf1f700: [32:32] 
+Cons_abf1f700: [33:33] 		read = getdelim(&line, &len, '\n', rfile);
+Cons_abf1f700: [34:34] 		if (read == -1) {
+Cons_abf1f700: [35:35] 			so->full = 1;
+Cons_abf1f700: [36:36] 			so->line = NULL;
+Cons_abf1f700: [37:37] 		}
+Cons_abf1f700: [38:38] 		else {
+Cons_abf1f700: [39:39] 			so->linenum = i;
+Cons_abf1f700: [40:40] 			so->line = strdup(line);      /* share the line */
+Cons_abf1f700: [41:41] 			i++;
+Cons_abf1f700: [42:42] 			so->full = 1;
+Cons_abf1f700: [43:43] 		}
+Cons_abf1f700: [44:44] 	
+Cons_abf1f700: [45:45] 		pthread_mutex_unlock(&so->lock);
+Cons_abf1f700: [46:46] 		pthread_cond_signal(&so->cv);
+Cons_abf1f700: [47:47] 		if (read == -1) break;
+Cons_abf1f700: [48:48] 	}
+Cons_abf1f700: [49:49] 	free(line);
+Cons_abf1f700: [50:50] 	printf("Prod_%x: %d lines\n", (unsigned int)pthread_self(), i);
+Cons_abf1f700: [51:51] 	*ret = i;
+Cons_abf1f700: [52:52] 	pthread_exit(ret);
+Cons_abf1f700: [53:53] }
+Cons_abf1f700: [54:54] 
+Cons_abf1f700: [55:55] void *consumer(void *arg) {
+Cons_abf1f700: [56:56] 	so_t *so = arg;
+Cons_abf1f700: [57:57] 	int *ret = malloc(sizeof(int));
+Cons_abf1f700: [58:58] 	int i = 0;
+Cons_abf1f700: [59:59] 	int len;
+Cons_abf1f700: [60:60] 	char *line;
+Cons_abf1f700: [61:61] 
+Cons_abf1f700: [62:62] 	while (1) {
+Cons_abf1f700: [63:63] 
+Cons_abf1f700: [64:64] 		pthread_mutex_lock(&so->lock);
+Cons_abf1f700: [65:65] 
+Cons_abf1f700: [66:66] 		while(so->full==0) {
+Cons_abf1f700: [67:67] 			pthread_cond_wait(&so->cv, &so->lock);
+Cons_abf1f700: [68:68] 	
+Cons_abf1f700: [69:69] 		}
+Cons_abf1f700: [70:70] 
+Cons_abf1f700: [71:71] 		line = so-> line;
+Cons_abf1f700: [72:72] 
+Cons_abf1f700: [73:73] 		if (line != NULL) {
+Cons_abf1f700: [74:74] 			len = strlen(line);
+Cons_abf1f700: [75:75] 			printf("Cons_%x: [%02d:%02d] %s",
+Cons_abf1f700: [76:76] 				(unsigned int)pthread_self(), i, so->linenum, line);
+Cons_abf1f700: [77:77] 			free(so->line);
+Cons_abf1f700: [78:78] 			i++;
+Cons_abf1f700: [79:79] 			so->full = 0;
+Cons_abf1f700: [80:80] 		}
+Cons_abf1f700: [81:81] 		pthread_mutex_unlock(&so->lock);
+Cons_abf1f700: [82:82] 		pthread_cond_signal(&so->cv);
+Cons_abf1f700: [83:83] 		if(line==NULL) break;
+Cons_abf1f700: [84:84] 	}
+Cons_abf1f700: [85:85] 
+Cons_abf1f700: [86:86] 	printf("Cons: %d lines\n", i);
+Cons_abf1f700: [87:87] 	*ret = i;
+Cons_abf1f700: [88:88] 	pthread_exit(ret);
+Cons_abf1f700: [89:89] }
+Cons_abf1f700: [90:90] 
+Cons_abf1f700: [91:91] 
+Cons_abf1f700: [92:92] int main (int argc, char *argv[])
+Cons_abf1f700: [93:93] {
+Cons_abf1f700: [94:94] 	pthread_t prod[100];
+Cons_abf1f700: [95:95] 	pthread_t cons[100];
+Cons_abf1f700: [96:96] 	int Nprod, Ncons;
+Cons_abf1f700: [97:97] 	int rc;   long t;
+Cons_abf1f700: [98:98] 	int *ret;
+Cons_abf1f700: [99:99] 	int i;
+Cons_abf1f700: [100:100] 	FILE *rfile;
+Cons_abf1f700: [101:101] 	if (argc == 1) {
+Cons_abf1f700: [102:102] 		printf("usage: ./prod_cons <readfile> #Producer #Consumer\n");
+Cons_abf1f700: [103:103] 		exit (0);
+Cons_abf1f700: [104:104] 	}
+Cons_abf1f700: [105:105] 
+Cons_abf1f700: [106:106] 	so_t *share = malloc(sizeof(so_t));
+Cons_abf1f700: [107:107] 	memset(share, 0, sizeof(so_t));
+Cons_abf1f700: [108:108] 	rfile = fopen((char *) argv[1], "r");
+Cons_abf1f700: [109:109] 
+Cons_abf1f700: [110:110] 	if (rfile == NULL) {
+Cons_abf1f700: [111:111] 		perror("rfile");
+Cons_abf1f700: [112:112] 		exit(0);
+Cons_abf1f700: [113:113] 	}
+Cons_abf1f700: [114:114] 
+Cons_abf1f700: [115:115] 	if (argv[2] != NULL) {
+Cons_abf1f700: [116:116] 		Nprod = atoi(argv[2]);
+Cons_abf1f700: [117:117] 		if (Nprod > 100) Nprod = 100;
+Cons_abf1f700: [118:118] 		if (Nprod == 0) Nprod = 1;
+Cons_abf1f700: [119:119] 	} else Nprod = 1;
+Cons_abf1f700: [120:120] 
+Cons_abf1f700: [121:121] 	if (argv[3] != NULL) {
+Cons_abf1f700: [122:122] 		Ncons = atoi(argv[3]);
+Cons_abf1f700: [123:123] 		if (Ncons > 100) Ncons = 100;
+Cons_abf1f700: [124:124] 		if (Ncons == 0) Ncons = 1;
+Cons_abf1f700: [125:125] 	} else Ncons = 1;
+Cons_abf1f700: [126:126] 
+Cons_abf1f700: [127:127] 	share->rfile = rfile;
+Cons_abf1f700: [128:128] 	share->line = NULL;
+Cons_abf1f700: [129:129] 
+Cons_abf1f700: [130:130] 	pthread_mutex_init(&share->lock, NULL);
+Cons_abf1f700: [131:131] 
+Cons_abf1f700: [132:132] 
+Cons_abf1f700: [133:133] 	for (i = 0 ; i < Nprod ; i++)
+Cons_abf1f700: [134:134] 		pthread_create(&prod[i], NULL, producer, share);
+Cons_abf1f700: [135:135] 
+Cons_abf1f700: [136:136] 	for (i = 0 ; i < Ncons ; i++)
+Cons_abf1f700: [137:137] 		pthread_create(&cons[i], NULL, consumer, share);
+Cons_abf1f700: [138:138] 
+Cons_abf1f700: [139:139] 	printf("main continuing\n");
+Cons_abf1f700: [140:140] 
+Cons_abf1f700: [141:141] 	for (i = 0 ; i < Ncons ; i++) {
+Cons_abf1f700: [142:142] 		rc = pthread_join(cons[i], (void **) &ret);
+Cons_abf1f700: [143:143] 		printf("main: consumer_%d joined with %d\n", i, *ret);
+Cons_abf1f700: [144:144] 	}
+Cons_abf1f700: [145:145] 	for (i = 0 ; i < Nprod ; i++) {
+Cons_abf1f700: [146:146] 		rc = pthread_join(prod[i], (void **) &ret);
+Cons_abf1f700: [147:147] 		printf("main: producer_%d joined with %d\n", i, *ret);
+Cons_abf1f700: [148:148] 	}
+Cons_abf1f700: [149:149] 
+Cons_abf1f700: [150:150] 
+Cons_abf1f700: [151:151] 	pthread_exit(NULL);
+Cons_abf1f700: [152:152] 
+Cons_abf1f700: [153:153] 	exit(0);
+Cons_abf1f700: [154:154] }
+Cons_abf1f700: [155:155] 
+Prod_ac720700: 156 lines
+Cons: 156 lines
+main: consumer_0 joined with 156
+main: producer_0 joined with 156
